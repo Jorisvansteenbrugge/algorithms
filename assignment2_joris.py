@@ -25,7 +25,27 @@ Definitions:
 
 # import statements
 from sys import argv
+from Bio import SeqIO
 
+def parse_fasta(file_name):
+    # sequences = []
+    # seq = ""
+    # with open(file_name) as in_file:
+    #     for line in in_file:
+    #         if not line.strip():
+    #             continue
+    #         if line.startswith('>'):
+    #             if seq != "":
+    #                 sequences.append(seq)
+    #                 seq = ""
+    #         else:
+    #             seq += line.strip()
+
+    # sequences.append(seq)
+    # return sequences
+    return [entry.seq for entry in SeqIO.parse(file_name,'fasta')]
+    #for entry in SeqIO.parse(file_name,'fasta'):
+     #   sequences.append(entry.seq)
 
 def create_hashtable(seqs, k = 2):
     """Returns a hashtable of non-overlaping k-mers for a database of sequences.
@@ -44,7 +64,6 @@ def create_hashtable(seqs, k = 2):
 
     """
     hashtable = {}
-
     for i, seq in enumerate(seqs): 
         for x in range(0, len(seq), k):
             kmer = seq[x: x + k]
@@ -53,6 +72,8 @@ def create_hashtable(seqs, k = 2):
             "It's easier to ask forgiveness than it is to get permission."
              ~ Grace Hopper
             """
+            if len(kmer) != k:
+                continue
             try:
                 hashtable[kmer].append((i, x))
             except KeyError:
@@ -93,6 +114,11 @@ def get_longest_match(M_list, l_seqs):
 
     return max(all_matches, key=len)
 
+def pretty_print_table(hashtable):
+    for key,val in hashtable.items():
+        values = [",".join(map(str, v)) for v in val]
+        print key + "\t" + "\t".join(values)
+
 def print_alignment(longest_match, seqs, k = 2):
     subject = seqs[longest_match[0][0]]
 
@@ -107,18 +133,31 @@ def print_alignment(longest_match, seqs, k = 2):
     print " " * pos + "|" *len(matching_query)
     print " " * pos + matching_query
 
-def SSAHA(query, seqs):
-    hashtable = create_hashtable(seqs)
-    M_list = sequence_search(query, hashtable)
+def SSAHA(query, seqs, k = 2, print_info = True):
+    hashtable = create_hashtable(seqs, k)
+    M_list = sequence_search(query, hashtable, k)
     longest_match = get_longest_match(M_list, len(seqs))
 
-    print_alignment(longest_match, seqs)
+
+    if print_info:
+        ##print Hashtable
+        print("HashTable: ")
+        pretty_print_table(hashtable)
+
+        
+        print("Number of hits: {}".format(str(len(M_list))))
+        print("First hit: {}".format(M_list[0]))
+        print("Last hit: {}".format(M_list[-1]))
+    
+    #Print the actual alignment
+    print_alignment(longest_match, seqs, k)
 
 if __name__ == "__main__":
     # the code below should produce the results necessary to answer the questions
     # in other words, if we run your code, we should see the data that you used
     # to answer the questions
     
+    ara_genome_file = '/home/joris/algorithms/TAIR10.fasta'
     query = 'TGCAACAT'
     
     s1 = 'GTGACGTCACTCTGAGGATCCCCTGGGTGTGG'
@@ -126,4 +165,11 @@ if __name__ == "__main__":
     s3 = 'GGATCCCCTGTCCTCTCTGTCACATA'
     seqs = [s1,s2,s3]
 
-    SSAHA(query, seqs)
+    #With test database
+    SSAHA(query, seqs, 2, print_info = True)
+    
+    genome = parse_fasta(ara_genome_file)
+    #Tair database
+    SSAHA(query, genome, 15, print_info = False)
+
+    
