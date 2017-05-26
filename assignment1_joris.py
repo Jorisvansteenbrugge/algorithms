@@ -10,7 +10,7 @@ __author__ = "Joris van Steenbrugge (950416798110)"
 __email__ = " joris.vansteenbrugge@wur.nl"
 
 import argparse 
-
+import resource
 
 blosum = """
 # http://www.ncbi.nlm.nih.gov/Class/FieldGuide/BLOSUM62.txt
@@ -58,10 +58,10 @@ def parse_arguments():
         help = "The first protein sequence")
     parser.add_argument("-seqB", dest = "seqB", required = True,
         help = "The second protein sequence")
-    parser.add_argument("-gap_penalty", dest = "gap_penalty", required = False,
+    parser.add_argument("-gap", dest = "gap", required = False,
         default = 4, type = int,
         help = "The scoring penalty for introducing gaps in the alignment")
-    parser.add_argument("-end_gap_penalty", dest = "end_gap_penalty", required = False,
+    parser.add_argument("-end_gap_penalty", dest = "end_gap", required = False,
         default = 2, type = int,    
         help = "The scoring penalty for introducing gaps at the start or beginning of the alignment")
 
@@ -210,24 +210,11 @@ def fill_matrix(matrix, parent_matrix, sequences, E = 4, A = 2):
 
     #iterate all rows
     for i in range(1, len(matrix)):
-        left_gap = True
         #iterate all collumns per row
         for j in range(1, len(matrix[0])):
-            up_gap = True
-
-            #left gap indicates if there is an end_gap on the left
-            #if the current reslt would be a gap this would also
-            #use the end gap score instead of the regular one
-            if left_gap:
-                left = matrix[i][j-1] + gap_penalty(1, A)
-            else:
-                left = matrix[i][j-1] + gap_penalty(1, E)
-
-            #up gap works in a similar fashion as left gap 
-            if up_gap:
-                up = matrix[i-1][j] + gap_penalty(1, A)
-            else:
-                up = matrix[i-1][j] + gap_penalty(1, E)
+            
+            left = matrix[i][j-1] + gap_penalty(1, E)
+            up = matrix[i-1][j] + gap_penalty(1, E)
             diag = matrix[i-1][j-1] + score_at_position(i, j, sequences)
 
             #for each position, 3 possible scores are applicable,
@@ -251,8 +238,6 @@ def fill_matrix(matrix, parent_matrix, sequences, E = 4, A = 2):
             parent_matrix[i][j] = parent
 
     return matrix, parent_matrix
-
-
 
 
 def traceback(matrix, parent_matrix, sequences):
@@ -321,12 +306,19 @@ def align(seq1, seq2, E = 4, A = 2):
                                     )
          )
 
+    #Printing the score
+    i = (len(matrix) - 1)
+    j = (len(matrix[0]) - 1)
+    print("Alignment Score: {}".format(str(matrix[i][j])))
+
 if __name__ == "__main__":
     args = parse_arguments()
     seq1 = "THISLINE"
     seq2 = "ISALIGNED"
     
-    align(args.seqA, args.seqB, E = args.gap_penalty,
-     A = args.gap_penalty)
+    align(args.seqA, args.seqB, E = args.gap,
+     A = args.end_gap)
+
+    print(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1000)
 
 
