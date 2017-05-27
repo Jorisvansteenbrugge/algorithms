@@ -5,12 +5,19 @@ Student number: 950416798110
 Implementation of the SSAHA algorithm
 """
 
-from sys import argv
+from sys import argv, exit
 from Bio import SeqIO
-import resource
 
 def parse_fasta(file_name):
-    return [str(entry.seq) for entry in SeqIO.parse(file_name,'fasta')]
+    """Returns a list with sequences from a fasta file
+
+        The fasta file is parsed using Biopython as fasta parsing is
+        trivial for this assignment.
+
+        Keyword Arguments:
+            file_name -- string, file path of the fasta file
+    """
+    return [str(entry.seq) for entry in SeqIO.parse(file_name, 'fasta')]
 
 def create_hashtable(seqs, k = 2):
     """Returns a hashtable of non-overlaping k-mers for a database of sequences.
@@ -30,25 +37,35 @@ def create_hashtable(seqs, k = 2):
     """
     hashtable = {}
     for i, seq in enumerate(seqs): 
-        for x in range(0, len(seq), k):
+        for x in range(0, len(seq), k): #create all chained k-mers for seq
             kmer = seq[x: x + k]
              
             # Sometimes the last kmer is truncated and not the actual length
             if len(kmer) != k:
                 continue
+
             """
             "It's easier to ask forgiveness than it is to get permission."
              ~ Grace Hopper
+             (also faster in python)
             """
-
             try:
                 hashtable[kmer].append((i, x))
-            except KeyError:
+            except KeyError: #happens if the key does not yet exist
                 hashtable[kmer] = [(i, x)]
         
     return hashtable
 
 def sequence_search(query, hashtable, k = 2):
+    """Return a list containing tuples of hits
+
+        The tuples contain (index, shift, offset) each.
+
+        Keyword Arguments:
+            query -- string, DNA sequence to compare with the database
+            hashtable -- dictionary, {kmer: offset(s)}
+            k -- int, size the kmers should be.
+    """
     M = []
     for t in range(0, len(query) - k + 1):
         kmer = query[t:t+k]
@@ -69,6 +86,13 @@ def sequence_search(query, hashtable, k = 2):
     return sorted(M, key = lambda x: (x[0], x[1]))
 
 def get_longest_match(M_list, l_seqs):
+    """Returns the longest match of the query and the database.
+
+        Keyword Arguments:
+            M_list -- list, matches between the query and the database
+            l_seqs -- int, The number of sequences in the database
+
+    """
     all_matches = []
     for i in range(l_seqs):
         cur_index_matches = [x for x in M_list if x[0] == i]
@@ -98,6 +122,17 @@ def pretty_print_table(hashtable):
         print(key + "\t" + "\t".join(values))
 
 def print_alignment(query, longest_match, seqs, k = 2):
+    """Prints the alignment in a human interpretable way.
+
+        Not suitable for large sequences as the console will be flooded 
+        with output.
+
+        Keyword Arguments:
+            query --  string, DNA sequence
+            longest_match -- list, positions of the longest match
+            seqs -- list, DNA sequences in the database
+
+    """
     subject = seqs[longest_match[0][0]]
 
     matching_query = [subject[match[2]:match[2]+k] for \
@@ -115,11 +150,26 @@ def print_alignment(query, longest_match, seqs, k = 2):
 
 
 def rev_comp(seq):
+    """Returns the reverse complement of a DNA sequence
+
+        Keyword Arguments:
+            seq -- string, DNA sequence
+    """
     comp_dic = {"A": "T", "C": "G",
                 "T": "A", "G": "C"}
     return "".join([comp_dic[x] for x in seq[::-1]])
     
 def SSAHA(query, seqs, k = 2, print_info = True):
+    """Performs the SSAHA on a DNA sequence query and database
+
+        Keyword Arguments:
+            query -- string or list, containing the DNA sequence(s)
+            seqs -- list, containing the DNA sequences to serve as database
+            k -- int, size of the k-mers
+            print_info -- bool, if yes detailed information such as the hash
+                            table is printed to the console. Not suitable for
+                            large sequences.
+    """
     hashtable = create_hashtable(seqs, k)
     if type(query) == list: #This corresponds with the TAIR database search
         for i, Q in enumerate(query):
@@ -140,7 +190,7 @@ def SSAHA(query, seqs, k = 2, print_info = True):
                         str(i)))
                 print(longest_match)
 
-    else:
+    else: #Happens if the query is a string (for the test query)
         M_list = sequence_search(query, hashtable, k)
         longest_match = get_longest_match(M_list, len(seqs))
 
@@ -149,7 +199,6 @@ def SSAHA(query, seqs, k = 2, print_info = True):
         if print_info:
             print("HashTable: ")
             pretty_print_table(hashtable)
-
         
             print("Number of hits: {}".format(str(len(M_list))))
             print("First hit: {}".format(M_list[0]))
@@ -160,10 +209,14 @@ def SSAHA(query, seqs, k = 2, print_info = True):
             print_alignment(query,longest_match, seqs, k)
 
 if __name__ == "__main__": 
-    ara_genome_file = "/home/steen176/TAIR10.fasta"
-    query_file = "/home/steen176/athal_query.fasta" 
+    if len(argv) != 3:
+        print("Usage: python assignment2_joris.py <genome.fa> <query.fa>")
+        exit(2)
+
+    ara_genome_file = argv[1]
+    query_file = argv[2] 
+
     query = "AGCAACAT"
-    
     s1 = "GTGACGTCACTCTGAGGATCCCCTGGGTGTGG"
     s2 = "GTCAACTGCAACATGAGGAACATCGACAGGCCCAAGGTCTTCCT"
     s3 = "GGATCCCCTGTCCTCTCTGTCACATA"
