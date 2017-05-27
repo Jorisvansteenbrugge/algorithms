@@ -3,29 +3,11 @@
 Author: Joris van Steenbrugge
 Student number: 950416798110
 Implementation of the SSAHA algorithm
-
-Hints:
-- write a function to generate a hash table of k-mers from a set of sequences
-- write a function to return a sorted list of hits in the hash table for a query sequence
-- write a function to find the best hit
-- write a fasta parser to read in the Arabidopsis data
-
 """
- 
-""" 
-Definitions:
-    Q               --  query sequence
-    D               --  Data base of sequences D = {S1, s2, .., Sd}
-                            each sequence in D is labeled with an index i
-    ktuple          -- contiguous sequences of k bases long. 
-                        each sequence of length n has (n-k+1) overlapping 
-                        tuples
-    offset wj(S)    --  the k-tuple of S that has offset j
-""" 
 
-# import statements
 from sys import argv
 from Bio import SeqIO
+import resource
 
 def parse_fasta(file_name):
     return [str(entry.seq) for entry in SeqIO.parse(file_name,'fasta')]
@@ -104,15 +86,18 @@ def get_longest_match(M_list, l_seqs):
     return max_val
 
 def pretty_print_table(hashtable):
-    """Converts the hashtable to a format printable.
+    """Converts the hashtable to a printable format.
     
-        The output will be comparable to table 1 in N. Zemin et al.
+    The output will be comparable to table 1 in N. Zemin et al.
+
+        Keyword Arguments:
+            hashtable -- dict, {kmer:offset}
     """
     for key,val in hashtable.items():
         values = [",".join(map(str, v)) for v in val]
-        print key + "\t" + "\t".join(values)
+        print(key + "\t" + "\t".join(values))
 
-def print_alignment(longest_match, seqs, k = 2):
+def print_alignment(query, longest_match, seqs, k = 2):
     subject = seqs[longest_match[0][0]]
 
     matching_query = [subject[match[2]:match[2]+k] for \
@@ -121,19 +106,40 @@ def print_alignment(longest_match, seqs, k = 2):
     matching_query = "".join(matching_query)
     pos = subject.index(matching_query)
 
+    pos_match_in_query = query.index(matching_query)
 
-    print subject
-    print " " * pos + "|" *len(matching_query)
-    print " " * pos + matching_query
+    print(subject)
+    print(" " * (pos - pos_match_in_query) + "." * pos_match_in_query \
+                + "|" * len(matching_query))
+    print(" " * (pos - pos_match_in_query) + query)
 
+
+def rev_comp(seq):
+    comp_dic = {"A": "T", "C": "G",
+                "T": "A", "G": "C"}
+    return "".join([comp_dic[x] for x in seq[::-1]])
+    
 def SSAHA(query, seqs, k = 2, print_info = True):
     hashtable = create_hashtable(seqs, k)
-    if type(query) == list:
-        for Q in query:
+    if type(query) == list: #This corresponds with the TAIR database search
+        for i, Q in enumerate(query):
             M_list = sequence_search(Q, hashtable, k)
             longest_match = get_longest_match(M_list, len(seqs))
             if longest_match:
-                print_alignment(longest_match, seqs, k)         
+                print("Longest match for query {}:".format(
+                        str(i)))
+                print(longest_match)
+
+        print("Now for the reverse complement")
+        for i, Q in enumerate(query):
+            Q = rev_comp(Q)
+            M_list = sequence_search(Q, hashtable, k)
+            longest_match = get_longest_match(M_list, len(seqs))
+            if longest_match:
+                print("Longest match for query's {} rev_comp :".format(
+                        str(i)))
+                print(longest_match)
+
     else:
         M_list = sequence_search(query, hashtable, k)
         longest_match = get_longest_match(M_list, len(seqs))
@@ -141,7 +147,6 @@ def SSAHA(query, seqs, k = 2, print_info = True):
         print("The hashtable contains {} k-mers of size {}".format(
                             str(len(hashtable.keys())), str(k)))
         if print_info:
-            ##print Hashtable
             print("HashTable: ")
             pretty_print_table(hashtable)
 
@@ -150,18 +155,14 @@ def SSAHA(query, seqs, k = 2, print_info = True):
             print("First hit: {}".format(M_list[0]))
             print("Last hit: {}".format(M_list[-1]))
     
-        #Print the actual alignment
+        #Visualize the alignment
         if longest_match:
-            print_alignment(longest_match, seqs, k)
+            print_alignment(query,longest_match, seqs, k)
 
-if __name__ == "__main__":
-    # the code below should produce the results necessary to answer the questions
-    # in other words, if we run your code, we should see the data that you used
-    # to answer the questions
-    
+if __name__ == "__main__": 
     ara_genome_file = "/home/steen176/TAIR10.fasta"
     query_file = "/home/steen176/athal_query.fasta" 
-    query = "TGCAACAT"
+    query = "AGCAACAT"
     
     s1 = "GTGACGTCACTCTGAGGATCCCCTGGGTGTGG"
     s2 = "GTCAACTGCAACATGAGGAACATCGACAGGCCCAAGGTCTTCCT"
@@ -172,14 +173,15 @@ if __name__ == "__main__":
     SSAHA(query, seqs, 2, print_info = True)
 
     
-    print("Using the Tair database:")
+    print("\n\nUsing the Tair database:\n")
     queries = parse_fasta(query_file)
     genome = parse_fasta(ara_genome_file)
     l_seq = sum([len(x) for x in genome])
+
+
     print("The genome contains: {} sequences".format(
             str(len(genome))))
-    print("The total sequence length is: {}".format(
+    print("The total sequence length is: {} bp".format(
             str(l_seq)))
     SSAHA(queries, genome, 15, print_info = False)
 
-    
