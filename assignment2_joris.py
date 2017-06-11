@@ -216,14 +216,14 @@ if __name__ == "__main__":
     ara_genome_file = argv[1]
     query_file = argv[2] 
 
-    query = "AGCAACAT"
+    query = "TGCAACAT"
     s1 = "GTGACGTCACTCTGAGGATCCCCTGGGTGTGG"
     s2 = "GTCAACTGCAACATGAGGAACATCGACAGGCCCAAGGTCTTCCT"
     s3 = "GGATCCCCTGTCCTCTCTGTCACATA"
     seqs = [s1,s2,s3]
 
     print("Using the test database:")
-    SSAHA(query, seqs, 2, print_info = True)
+    SSAHA(query, seqs, 3, print_info = True)
 
     
     print("\n\nUsing the Tair database:\n")
