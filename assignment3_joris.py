@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 
 """
-Author: 
+Author: Joris van Steenbrugge
 
 Description: this is a script to ...
 """
 from __future__ import division
 from sys import argv
 from random import random
+import numpy
 from Bio import SeqIO
 
 # Background amino acid probabilities
@@ -49,10 +50,10 @@ class HMM():
 
         self.t_mm  = [0.0] * (self.nmatches + 1)
         self.t_mi  = [0.0] * (self.nmatches + 1)
-        self.t_im  = [0.0] * (self.nmatches + 1)
+        self.t_im  = [1.0] * (self.nmatches + 1)
         self.t_ii  = [0.0] * (self.nmatches + 1)
         self.t_md  = [0.0] * (self.nmatches + 1)
-        self.t_dm  = [0.0] * (self.nmatches + 1)
+        self.t_dm  = [1.0] * (self.nmatches + 1)
         self.t_dd  = [0.0] * (self.nmatches + 1)
 
     def get_probabilities(self, sequences):
@@ -86,9 +87,6 @@ class HMM():
                 count += 1
         return count / total 
 
-
-
-
     def _pos_prob(self, sequences, pos):
         pos_seq = [seq[pos] for seq in sequences]
         length = len(pos_seq)
@@ -116,7 +114,6 @@ class HMM():
             return 'match'
         else:
             return 'insert'
-
 
     def _transmission_probabilities(self, sequences):
         """
@@ -155,8 +152,6 @@ class HMM():
                     self.t_mm[i + 1] = mm
             except IndexError:
                 pass
-
-
 
 def sample(events):
     """Return a key from dict based on the probabilities 
@@ -204,8 +199,61 @@ def get_states(sequences):
             insert_states.append(i)
 
     return match_states, insert_states
+    
+def calc_traverse_path(a, p):
+    return numpy.random.choice(a = a, p = p)
 
+def trav(hmm):
+    sequence = ""
+    state = "match"
+    for idx in range(len(hmm.t_mm)):
+        
 
+        if state == "match":
+            if idx != 0:
+                sequence += sample(hmm.e_m[idx - 1])
+
+            mm = hmm.t_mm[ idx ]
+            md = hmm.t_md[ idx ]
+            mi = hmm.t_mi[ idx ]
+
+            a = ("mm", "md", "mi")
+            p = ( mm,   md,   mi )
+            
+        elif state == "insert":
+            if idx != 0:
+                sequence += sample(hmm.e_i)
+
+            im = hmm.t_im[ idx ]
+            ii = hmm.t_ii[ idx ]
+
+            a = ("im", "ii")
+            p = ( im,   ii )
+
+        elif state == "delete":
+            dd = hmm.t_dd[ idx ]
+            dm = hmm.t_dm[ idx ]
+
+            a = ("dd", "dm")
+            p = ( dd,   dm )
+
+        choice = calc_traverse_path(a, p)
+
+        if choice == "mm":
+            state = "match"
+        elif choice == "md":
+            state = "delete"
+        elif choice == "mi":
+            state = "insert"
+        elif choice == "im":
+            state = "match"
+        elif choice == "ii":
+            state = "insert"
+        elif choice == "dd":
+            state = "delete"
+        elif choice == "dm":
+            state = "match"
+    return sequence
 
 def parse_fasta(file_name):
     """Returns a list with sequences from a fasta file
@@ -221,10 +269,11 @@ def parse_fasta(file_name):
 if __name__ == "__main__":
 
     # implement main code here
-    infile = "/home/joris/algorithms/test.fasta"
+    infile = "/home/joris/hmm_data/test_large.fasta"
     sequences = parse_fasta(infile)
 
     match_states, insert_states = get_states(sequences)
 
     hmm = HMM(match_states, insert_states)
     hmm.get_probabilities(sequences)
+    print trav(hmm)
