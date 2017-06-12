@@ -32,13 +32,15 @@ class HMM():
     t_im  = []; t_ii  = []
     t_dm  = []; t_dd  = []; 
     
-    def __init__(self, match_states):
+    def __init__(self, match_states, insert_states):
         """Initialize HMM object with number of match states
         nmatches: int, number of match states
         """
 
         self.match_states_idx = match_states
-
+        self.insert_states_idx = insert_states
+        print 'match states: {}'.format(tuple(match_states))
+        print 'insert states: {}'.format(tuple(insert_states))
         self.nmatches = len(match_states)
 
         self.e_m   = [dict(pa) for _ in range(0, self.nmatches)]
@@ -61,10 +63,9 @@ class HMM():
                 self.e_m[pos][amino] = self._emissions_match_state(amino, 
                                                 sequences, match_idx)
 
-        self._transition_probabilities(sequences)
+        self._test(sequences)
 
-    def _emissions_match_state(self, amino, sequences, 
-                               match_idx):
+    def _emissions_match_state(self, amino, sequences, match_idx):
         """Returns the emission probabilities in each match state.
 
             This function is intended to be called from within the
@@ -88,9 +89,7 @@ class HMM():
                 count += 1
         return count / total 
 
-    def _match_match(self, i, sequences):
-        count = 0
-        if i+1 in self.match_states_idx:
+
 
 
     def _start_prob(self, sequences):
@@ -102,6 +101,74 @@ class HMM():
             match_prob = (total - ins_count) / total
 
             return match_prob, ins_prob, ins_prob
+
+    def _get_state(self, idx):
+        if idx in self.match_states_idx:
+            return 'match'
+        else:
+            return 'insert'
+
+    def _test(self, sequences):
+        for idx in range(len(sequences[0]) - 1):
+            current_state = self._get_state(idx)
+            next_state    = self._get_state(idx + 1)
+
+            current_seq   = [seq[idx]     for seq in sequences]
+            next_seq      = [seq[idx + 1] for seq in sequences]
+
+
+            mm_c = 0
+            mi_c = 0
+            md_c = 0
+            im_c = 0
+            ii_c = 0
+            for j in range(len(current_seq)):
+                if current_state == "match":
+                    output_idx = self.match_states_idx.index(idx) +1
+                    if next_state == "match":
+                        print current_seq
+                        print next_seq
+                        if next_seq[j] != '-':
+                            mm_c += 1
+                        else:
+                            md_c += 1
+                    elif next_state == "insert":
+                        if next_seq[j] != '-':
+                            mi_c += 1
+                        else:
+                            mm_c += 1
+                elif current_state == "insert":
+                    output_idx = self.insert_states_idx.index(idx)+1
+                    if next_state == "match":
+                        if next_seq[j] != '-':
+                            im_c += 1
+                        else:
+                            pass #i-> d kan niet
+                    if next_state == "insert":
+                        if next_seq[j] != '-':
+                            ii_c += 1
+            print "mm_c " + str(mm_c)
+            self.t_mm[output_idx] = (mm_c / len(sequences))
+            self.t_mi[output_idx] = (mi_c / len(sequences))
+            self.t_md[output_idx] = (md_c / len(sequences))
+            self.t_im[output_idx] = (im_c / len(sequences))
+            self.t_ii[output_idx] = (ii_c / len(sequences))
+            
+        self.t_mm[0], self.t_mi[0], self.t_im[0] = self._start_prob(sequences)
+        print self.t_mm 
+        print self.t_mi 
+        print self.t_md 
+        print self.t_im 
+        print self.t_ii 
+
+        #loop over positions, 
+            #state of the current
+            #state of next
+
+            #seq of current
+            #seq of next
+
+            #ifelse the counts
 
     def _transition_probabilities(self, sequences):
         self.t_mm, self.t_mi, self.t_im = self._start_prob(sequences)
@@ -126,7 +193,7 @@ class HMM():
             ii_c = 0
             for j in range(len(current_pos)):
                 if current_pos[j]   == "-":
-
+                    pass
                 elif current_pos[j] != "-":
 
                     if next_pos[j]   == "-" and next_state == 'match': 
@@ -185,7 +252,7 @@ def sample(events):
         i = i + 1
     return pick
     
-def get_match_states(sequences):
+def get_states(sequences):
     """Returns the indices of match states.
 
         This is implemented in a way that the length of the indices list is 
@@ -193,6 +260,7 @@ def get_match_states(sequences):
     
     """
     match_states = []
+    insert_states = []
     half_length = len(sequences) / 2.0
 
     for i in range(len(sequences[0])):
@@ -202,7 +270,10 @@ def get_match_states(sequences):
                 has_amino += 1
         if has_amino >= half_length:
             match_states.append(i)
-    return match_states
+        else: 
+            insert_states.append(i)
+
+    return match_states, insert_states
 
 
 def parse_fasta(file_name):
@@ -222,8 +293,8 @@ if __name__ == "__main__":
     infile = "/home/joris/hmm_data/test.fasta"
     sequences = parse_fasta(infile)
 
-    match_states = get_match_states(sequences)
+    match_states, insert_states = get_states(sequences)
 
-    hmm = HMM(match_states)
+    hmm = HMM(match_states, insert_states)
     hmm.get_probabilities(sequences)
  #   print hmm.e_m
