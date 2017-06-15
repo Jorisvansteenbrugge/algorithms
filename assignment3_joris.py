@@ -3,13 +3,14 @@
 """
 Author: Joris van Steenbrugge
 
-Description: this is a script to ...
+Description: Train a Hidden Markov Model and sample possible sequences 
+ based on the probabilities.
 """
 from __future__ import division
 from sys import argv
 from random import random
-import numpy
 from Bio import SeqIO
+import numpy
 
 # Background amino acid probabilities
 pa = { 'A': 0.074, 'C': 0.025, 'D': 0.054, 'E': 0.054, 'F': 0.047, 'G': 0.074,
@@ -42,6 +43,8 @@ class HMM():
         self.insert_states_idx = insert_states
         self.nmatches = len(match_states)
 
+        print("There are {} match states".format(self.nmatches))
+
         self.e_m   = [dict(pa) for _ in range(0, self.nmatches)]
         for i in range(0, self.nmatches):
             for j in pa.keys():
@@ -57,11 +60,47 @@ class HMM():
         self.t_dd  = [0.0] * (self.nmatches + 1)
 
     def get_probabilities(self, sequences):
+        """Wrapper to calculate the transmissionand emission probabilities
+
+            Keyword Arguments:
+                sequences -- list of strings, aligned amino acid sequences
+        """
         for pos, match_idx in enumerate(self.match_states_idx):
             for amino in pa.keys(): 
                 self.e_m[pos][amino] = self._emissions_match_state(amino, 
                                                 sequences, match_idx)
         self._transmission_probabilities(sequences)
+
+    def print_probabilities(self):
+        """Prints the different transmission probabilities to the console.
+        """
+        print("Transmission:")
+        print("mm {}".format(tuple(self.t_mm)))
+        print("mi {}".format(tuple(self.t_mi)))
+        print("md {}".format(tuple(self.t_md)))
+        print("im {}".format(tuple(self.t_im)))
+        print("ii {}".format(tuple(self.t_ii)))
+        print("dm {}".format(tuple(self.t_dm)))
+        print("dd {}".format(tuple(self.t_dd)))
+
+    def get_emission_matrix(self):
+        """Yields an emission probability matrix for a position specific profile.
+
+            Probabilities are rounded to 3 decimals.
+        """
+
+        #Header line with all amino acids
+        aminos = self.e_m[0].keys()
+        print("\t{}".format("\t".join(aminos)))
+
+        #for each match state take the emission state
+        for idx, match_state in enumerate(self.e_m):
+            #Join the emission state dictionary to a tab separated string
+            # containing rounded probability scores.
+            values = "\t".join(["%.3f" % round(x[1],3) \
+                            for x in match_state.items()])
+            yield("{}\t{}".format(idx+1, values))
+
 
     def _emissions_match_state(self, amino, sequences, match_idx):
         """Returns the emission probabilities in each match state.
@@ -88,9 +127,23 @@ class HMM():
         return count / total 
 
     def _pos_prob(self, sequences, pos):
+        """Returns four transmission probabilities at the start or end position
+
+            Keyword Arguments:
+                sequences -- list of strings, aligned amino acid sequences
+                pos -- int, should be either 0 for start or -1 for end position
+
+            As the start and end positions have no predecessors and successors,
+            respectively , the transmission probabilities are calculated here 
+            by calculating the chance for a match/deletion/insertion at the 
+            position itself.
+        """
+
+        #Get all sequences at the specific position
         pos_seq = [seq[pos] for seq in sequences]
         length = len(pos_seq)
         
+        #Either a match or insert state
         pos_state = self._get_state(0)
 
         mm = 0.0
@@ -99,9 +152,14 @@ class HMM():
         im = 0.0
 
         c = pos_seq.count("-")
+        # If the position is a match state the number of - indicates the number
+        # of deletions.
         if pos_state == 'match':
             md = (c / length)
             mm = ((length - c) / length)
+
+        #If the position is a insert state the number of "-" indicates the 
+        # number of m -> positions.
         else: # state == "insert"
             mm = (c / length)
             mi = ((length - c) / length)
@@ -110,14 +168,27 @@ class HMM():
         return mm, mi, md, im
 
     def _get_state(self, idx):
+        """Returns what state a position is in
+    
+            Keyword Arguments:
+                idx -- int, the position
+        """
         if idx in self.match_states_idx:
             return 'match'
         else:
             return 'insert'
 
     def _transmission_probabilities(self, sequences):
-        """
-        Missing: im, dd, ii 
+        """Calculates the transmission probabilities.
+
+            Keyword Arguments:
+                sequences -- list of strings, aligned amino acid sequences
+
+            Calculates probabilities for various transmissions (mm,md, mi) and
+            stores them in class contained lists.
+            
+            Transitions that are not calculated: im, dd, ii due to time 
+            restrictions.
 
         """
         self.t_mm[0], self.t_mi[0], \
@@ -180,6 +251,9 @@ def sample(events):
 def get_states(sequences):
     """Returns the indices of match states.
 
+        Keyword Arguments:
+            sequences -- list of strings, aligned amino acid sequences.
+
         This is implemented in a way that the length of the indices list is 
         the number of match states.
     
@@ -201,9 +275,26 @@ def get_states(sequences):
     return match_states, insert_states
     
 def calc_traverse_path(a, p):
+    """Returns a randomly picked value in a based on probabilities in p
+
+        Keyword Arguments:
+            a -- list, containing values to be considered
+            p -- list, containing probabilites for each considered value
+    """
     return numpy.random.choice(a = a, p = p)
 
-def trav(hmm):
+def traverse(hmm):
+    """Returns a randomly selected sequence based on probabilities in the HMM
+
+        Keyword Arguments:
+            hmm -- hmm class object
+
+        iteratively randomly selects a transition based on probabilities.
+        In match states an amino acid is selected based on the match state
+        emission probability list (contained in the hmm class).
+        In insert states an amino acid is selected based on the background
+        distribution emissions.
+    """
     sequence = ""
     state = "match"
     for idx in range(len(hmm.t_mm)):
@@ -258,22 +349,56 @@ def trav(hmm):
 def parse_fasta(file_name):
     """Returns a list with sequences from a fasta file
 
-        The fasta file is parsed using Biopython as fasta parsing is
-        trivial for this assignment.
+        It still feels a bit redundant to 
 
         Keyword Arguments:
             file_name -- string, file path of the fasta file
     """
-    return [str(entry.seq) for entry in SeqIO.parse(file_name, "fasta")]
+    sequences = []
+    seq = []
+    with open(file_name) as in_file:
+        for line in in_file:
+            if line.startswith(">"): #entry start
+                if len(seq) == 0:
+                    pass
+                else:#entry is present
+                    sequences.append("".join(seq))
+                    seq = []
+            else:
+                seq.append(line.strip())
+    sequences.append("".join(seq))
+    return sequences
+    #return [str(entry.seq) for entry in SeqIO.parse(file_name, "fasta")]
            
-if __name__ == "__main__":
 
-    # implement main code here
-    infile = "/home/joris/hmm_data/test_large.fasta"
+def find_HMM(infile):
+    """Wrapper function to train the HMM.
+
+        Keyword Arguments:
+            infile -- filepath to a fasta file containin aligned amino acid
+                        sequences.
+    """
     sequences = parse_fasta(infile)
-
     match_states, insert_states = get_states(sequences)
-
     hmm = HMM(match_states, insert_states)
     hmm.get_probabilities(sequences)
-    print trav(hmm)
+
+    return hmm
+
+if __name__ == "__main__":
+    #Q1
+    hmm = find_HMM(infile = "/home/joris/hmm_data/test.fasta")
+    #Q2
+    hmm.print_probabilities()
+    #Q3
+    print("\n".join(list(hmm.get_emission_matrix())))
+
+    #Q4
+    for i in range(10):
+        print(traverse(hmm))
+
+    # #Q6
+    hmm = find_HMM(infile = "/home/joris/hmm_data/test_large.fasta")
+    hmm.print_probabilities()
+    print("\n".join(hmm.get_emission_matrix()))
+    print(traverse(hmm))
