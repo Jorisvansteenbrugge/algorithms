@@ -8,6 +8,8 @@ Script to:
 
 # Implement your functions here
 
+paths = []
+
 def find_next(to_nodes, from_node,used_edges):
     for to_node in to_nodes:
         interaction = (from_node, to_node)
@@ -17,7 +19,30 @@ def find_next(to_nodes, from_node,used_edges):
     return None
 
 
-def is_eulerian(graph):
+def get_node_balances(graph):
+    from_nodes = graph.keys()
+    to_nodes   = graph.values()
+
+
+    balances = []
+
+    for key in list(set(from_nodes)):
+        from_count = len(graph[key])
+        to_count   = sum([1 for x in to_nodes if key in x])
+
+        balances.append(from_count - to_count)
+
+    return balances
+
+def is_eulerian(balances):
+    balances = [True for x in balances if x < 1]
+    if True in balances:   
+        return True
+    else: 
+        return False
+
+
+def get_edges(graph):
     used_edges = []
     from_node = graph.keys()[0]
 
@@ -34,8 +59,13 @@ def is_eulerian(graph):
                 keep_reading = False
         else:
             keep_reading = False
+    return used_edges
+
+def has_eulerian_path(graph):
+    edges = get_edges(graph)
+    print edges
     #check if first and last nodes are equal     
-    if used_edges[0][0] == used_edges[-1][1]:
+    if edges[0][0] == edges[-1][1]:
        return True
     else:
         return False
@@ -52,15 +82,16 @@ if __name__ == "__main__":
     s = ['ATG','TGG','TGC','GTG','GGC','GCA','GCG','CGT']
 
 
+    balances = get_node_balances(graph_822)
+    
 
-    if is_eulerian(graph_822):
-        print "graph_822 is eulerian"
-    else:
-        print "graph_822 is not eulerian"
 
-    if is_eulerian(bigger_graph):
-        print "bigger_graph is eulerian"
+    if is_eulerian(balances):
+        print("graph_822 is eulerian")
     else:
-        print "bigger_graph is not eulerian"
-    # Put function calls, print statements etc. to answer the questions here
-    # When we run your script we should see the answers on screen (or file) 
+        print("graph_822 is not eulerian")
+
+    if has_eulerian_path(graph_822):
+        print("graph_822 has an eulerian path")
+    else:
+        print("graph_822 has no eulerian path")
