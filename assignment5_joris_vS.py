@@ -23,7 +23,12 @@ def get_dim_mean(points, idx):
 def get_centroid(points, cluster):
     points = [point for point in points if point[-1] == cluster]
     
-    return [get_dim_mean(points, idx) for idx in range(len(points[0]) - 1) ]
+
+    try:
+        return [get_dim_mean(points, idx) for idx in range(len(points[0]) - 1) ]
+    except IndexError:
+        # cluster empty
+        return None
 
 
 def euclidean_distance(x, y):
@@ -65,28 +70,26 @@ def re_assign_point(point, centroids):
     distances  = [euclidean_distance(point[0:point_dims], centroid) for \
                                 centroid in centroids]
     closest    =  distances.index(max(distances))
-    point[-1] = closest
+    point[-1]  = closest
     return point
 
 
 def Kmeans(points, k = 2):
     clusters = range(k)
-    points = [initialize_cluster(point, clusters) for point in points]
+    #niet elk cluster wordt altijd gekozen in init_cluster
+    points   = [initialize_cluster(point, clusters) for point in points]
 
-    c = 0
 
     prev_points = []
     while True:
         centroids = [get_centroid(points, cluster) for cluster in clusters]
-        points = [re_assign_point(point, centroids) for point in points]
+        points    = [re_assign_point(point, centroids) for point in points]
 
         if points == prev_points:
             return points
 
         prev_points = points
 
-        print c
-        c+= 1
 
 
 if __name__ == "__main__":
@@ -94,5 +97,10 @@ if __name__ == "__main__":
     points = csv_parser(open(test_file))
     points = structure_points(points)
 
-    clustered_points = Kmeans(points)
-    print clustered_points
+    clustered_points = Kmeans(points, 3)
+    
+
+
+#formatting
+    clustered_points = ["\t".join(map(str, x)) for x in clustered_points]
+    print "\n".join(clustered_points)
