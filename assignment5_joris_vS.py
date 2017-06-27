@@ -2,36 +2,54 @@
 
 """
 Author: Joris van Steenbrugge
-Student number: 950416
-Implementation of the k-means clustering algorithm
+Student number: 950416798110
+Implementation of the k-means clustering algorithm with approximate convergence.
 """
 
 from __future__ import division
 from math import pow, sqrt
-from operator import mul
 import random   
 
 
 def get_dim_mean(points, idx):
+    """Return the mean of a datapoint dimension
+
+        Keyword Arguments:
+            points  -- list, Each entry is a list with datapoint measurements. 
+                             Each datapoint is according to: [x, y, ..., cluster] 
+                             where the number of measurements is variable. The 
+                             last value is always the clustering number.
+            idx     -- int,  The index of the dimension to calculate the mean 
+                             for.
+    """
     return sum([point[idx] for point in points]) / len(points)
 
 def get_centroid(points, cluster):
+    """Returns the centroid of a cluster as the average of each dimension.
+
+        Keyword Arguments:
+            points  -- list, each entry is a list with datapoint 
+                             measurements. Each datapoint is according
+                             to: [x, y, ..., cluster] where the number of 
+                             measurements is variable. The last value is 
+                             always the clustering number.
+            cluster -- int, cluster number
+    """
     points = [point for point in points if point[-1] == cluster]
     return [get_dim_mean(points, idx) for idx in range(len(points[0]) - 1) ]
 
-
-
 def euclidean_distance(x, y):
+    """Returns the Euclidean Distance between two points.
+        
+        Keyword Arguments:
+            x -- list, containing integer values.
+            y -- list, containing integer values.
+    """
     power = 2
     try:
         return sqrt(sum([pow((x[i] - y[i]), power) for i in range(len(x))]))
     except TypeError:
         return None
-    
-
-def initialize_cluster(point, k_range):
-    point[-1] = random.choice(k_range)
-    return point
     
 def csv_parser(lines):
     """Return list of point coordinates as [[x1,y1,z1,...],[x2,y2,z2,...]]
@@ -56,6 +74,15 @@ def csv_parser(lines):
     return data_points
 
 def structure_points(points):
+    """Returns the original datapoints with an added column for cluster number
+
+        Keyword Arguments:
+            points  -- list, each entry is a list with datapoint 
+                             measurements. Each datapoint is according
+                             to: [x, y, ..., cluster] where the number of 
+                             measurements is variable. The last value is 
+                             always the clustering number.
+    """
     return  [x + [None] for x in points]
 
 def re_assign_point(point, centroids):
@@ -94,7 +121,6 @@ def random_centroid(points):
     centroid = random.choice(points)
     return centroid[0: len(centroid) - 1]
 
-
 def centroid_change(c, prev_c, cutoff):
     """Returns True if the difference is lower than the cutoff.
         
@@ -124,7 +150,6 @@ def centroid_change(c, prev_c, cutoff):
         return True
     else:
         return False
-
 
 def calc_centroid_change(centroids, prev_centroids, cutoff):
     """Return Trues if centroid change is lower than the cutoff else Falses
@@ -205,7 +230,6 @@ def Kmeans(points, k = 2, cutoff = 0.02):
         
         prev_centroids = centroids
 
-
 def prepare_datapoints(file_name):
     """Return structured data-points loaded from a file
 
@@ -218,7 +242,6 @@ def prepare_datapoints(file_name):
     points    = csv_parser(open(file_name))
     points    = structure_points(points)
     return points
-
 
 def pretty_print(clustered_points):
     """Print data points in a human readable way.
